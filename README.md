@@ -1,2 +1,2 @@
-# Titanic no Streamlit
-Projeto Titanic no Streamlit
+# Jornais no Streamlit
+Projeto Jornais no Streamlit

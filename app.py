@@ -1,245 +1,83 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import streamlit as st
-import plotly.figure_factory as ff
+import pandas as pd
+import plotly.express as px
 
+# Carregar os dados coletados
 @st.cache_data
-def fetch_and_clean_data():
-    # Recupera e limpa os dados
-    d_frame = pd.read_csv('https://raw.githubusercontent.com/emerson-prof-carvalho/ciencia-de-dados-arquivos/refs/heads/main/datasets/titanic.csv')
-    
-    d_frame_cleaned = d_frame.drop(columns=['deck', 'embark_town', 'alive', 'alone'])
-    
-    # fillna remove valores nulos/vavios do dataframe passado
-    # implace é para substituir no prórpio dataframe
-    d_frame_cleaned['age'].fillna(d_frame['age'].mean(), inplace=True)
+def carregar_dados():
+    try:
+        df = pd.read_csv("noticias_completas.csv")
+        return df
+    except FileNotFoundError:
+        st.error("Arquivo 'noticias_completas.csv' não encontrado. Execute a coleta de dados primeiro.")
+        return pd.DataFrame()
 
-    # mode retona a moda (valor mais frequente)
-    d_frame_cleaned['embarked'].fillna(d_frame_cleaned['embarked'].mode()[0], inplace=True)
-
-    return d_frame_cleaned
-
-df = fetch_and_clean_data()
+df = carregar_dados()
 
 # === Barra Lateral ===
-st.sidebar.header('Configurações', divider='blue')
+st.sidebar.header('🔍 Configurações', divider='blue')
 
-data_expander = st.sidebar.expander(label="# **Dados Tabulares**", icon=":material/table:")
+# Formulário para exibição dos dados tabulares
+data_expander = st.sidebar.expander("# **Exibir Dados**", icon=":material/table:")
 with data_expander:
-    # Formulário dos filtros
-    with st.form("settings_form", clear_on_submit=False):
-        explain_data = st.checkbox("Significado dos Dados")
-        data_in_table = st.checkbox("Exibir Tabela de Dados")
-        data_described = st.checkbox("Resumir Dados")
-        
-        # Todo form precisa de um botão de submit, que guarda se ele foi submetido ou não
-        settings_form_submitted = st.form_submit_button("Carregar")
+    with st.form("dados_form"):
+        mostrar_tabela = st.checkbox("Exibir tabela de dados")
+        mostrar_resumo = st.checkbox("Resumo estatístico dos dados")
+        dados_form_submit = st.form_submit_button("Mostrar")
 
+# Formulário para exibição de gráficos
 graph_expander = st.sidebar.expander("# **Gráficos**", icon=":material/monitoring:")
-# st.sidebar.subheader('Gráficos')
 with graph_expander:
-    # Formulário dos gráficos
-    with st.form("graphs_form", clear_on_submit=False):
-        pass_per_class_graph = st.checkbox("Passageiros por Classe")
-        age_hitogram = st.checkbox("Frequência de Idade")
-        survived = st.checkbox("% de Sobreviventes")
-        class_survived = st.checkbox("Sobreviventes por Classe")
-        class_p_survived = st.checkbox("% de Sobreviventes por Classe")
-        corr_class_survived = st.checkbox("Correlação Sobreviventes vs Classe")
-        corr_1class3_survived = st.checkbox("Correlação Sobreviventes vs Classe (1 e 3)")
-        sex_survived = st.checkbox("Sobreviventes por Sexo")
-        corr_sex_survived = st.checkbox("Correlação Sobreviventes vs Sexo")
-        
-        graphs_form_submitted = st.form_submit_button("Gerar")
+    with st.form("graficos_form"):
+        mostrar_grafico_categorias = st.checkbox("Distribuição de Categorias")
+        mostrar_grafico_fontes = st.checkbox("Distribuição por Fonte")
+        graficos_form_submit = st.form_submit_button("Gerar Gráficos")
 
 # === Página Principal ===
-st.header('Projeto Titanic', divider='blue')
+st.title("📰 Dashboard de Notícias Mais Lidas")
 
-# Um markdown de múltiplas linhas
-data_meaning = '''
+# Se não houver dados
+if df.empty:
+    st.warning("Nenhuma notícia disponível. Execute a coleta de dados.")
+else:
+    # Filtros interativos
+    st.sidebar.subheader("🎯 Filtrar Dados")
+    categorias = df["Categoria"].unique()
+    fontes = df["Fonte"].unique()
 
-- `Variável`: Significado
+    categoria_selecionada = st.sidebar.multiselect("Filtrar por Categoria:", categorias, default=categorias)
+    fonte_selecionada = st.sidebar.multiselect("Filtrar por Fonte:", fontes, default=fontes)
 
-- `Survived`: Se o passageiro sobrevieu (0 = não, 1 = sim)
-- `Pclass`: Classe (1 = primeira classe, 2 = segunda classe, 3 = terceira classe)
-- `Sex`: Gênero
-- `Age`: Idade do Passageiro
-- `SibSp`: Número de irmãos/cônjuges a bordo
-- `Parch`: Número de pais/crianças a bordo
-- `Fare`: Tarifa paga pelo bilhete
-- `Embarked`: Porto de embarque (C = Cherbourg, Q = Queenstown, S = Southampton)
-- `Class`: Equivalente a `Pclass` (1 = 1ª classe, 2 = 2ª classe, 3 = 3ª classe)
-- `Who`: Categoria do passageiro (homem, mulher, criança)
-- `Adult_male`: Se o passageiro é um homem adulto ou não (Verdadeiro ou Falso)
-- `Deck`: Convés da cabine
-- `Embark_town`: Porto de embarque (Cherbourg, Queenstown, Southampton)
-- `Alive`: Status de sobrevivência (sim ou não)
-- `Alone`: Se o passageiro está sozinho ou não (Verdadeiro ou Falso)
-'''
+    # Aplicar filtros
+    df_filtrado = df[df["Categoria"].isin(categoria_selecionada) & df["Fonte"].isin(fonte_selecionada)]
 
-# Ao submeter o form de dados tabulares
-if settings_form_submitted:
-    if explain_data:
-        st.subheader("Dicionário dos Dados", divider="gray")
-        st.markdown(data_meaning)
-    
-    if data_in_table:
-        st.subheader("Tabela da Dados", divider="gray")
-        st.write(df)
-    
-    if data_described:
-        st.subheader("Resumo dos Dados", divider="gray")
-        st.write(df.describe())
-
-# Ao submeter o form de gráficos
-if graphs_form_submitted:
-    if pass_per_class_graph:
-        st.subheader("Passageiros por Classe", divider="gray")
+    # Exibição dos dados tabulares
+    if dados_form_submit:
+        if mostrar_tabela:
+            st.subheader("📋 Dados das Notícias")
+            st.write(df_filtrado)
         
-        st.bar_chart(data=df['class'].value_counts().sort_index(), x_label="Classe", y_label="Nº Passageiros", color="#8A2BE2")
+        if mostrar_resumo:
+            st.subheader("📊 Resumo Estatístico")
+            st.write(df_filtrado.describe(include="all"))
 
-if graphs_form_submitted:
-    if age_hitogram:
-        st.subheader("Histograma por Idade", divider="gray")
-        
-        # Agrupa os dados
-        data = [df['age']]
-        labels = ['Idade']
-        # Cria o distplot com bin_size customizado
-        fig = ff.create_distplot(data, labels, bin_size=[2], colors=["#8A2BE2"])
+    # Exibição dos gráficos
+    if graficos_form_submit:
+        if mostrar_grafico_categorias:
+            st.subheader("📊 Distribuição das Categorias")
+            categoria_counts = df_filtrado["Categoria"].value_counts().reset_index()
+            categoria_counts.columns = ["Categoria", "Quantidade"]
+            
+            fig = px.bar(categoria_counts, x="Categoria", y="Quantidade", 
+                         title="Quantidade de Notícias por Categoria",
+                         text_auto=True, color="Categoria")
+            st.plotly_chart(fig, use_container_width=True)
 
-        # Plot!
-        st.plotly_chart(fig, use_container_width=True)
-
-if graphs_form_submitted:
-    if survived:
-        st.subheader("% de Sobreviventes", divider="gray")
-
-        frame = df['survived'].value_counts().sort_index().to_frame("count")
-        frame = frame.reset_index(names="survived")
-        frame.replace(0, 'Morreu', inplace=True)
-        frame.replace(1, 'Sobreviveu', inplace=True)
-        
-        # Gráfico
-        plt.figure(figsize=(12, 9))
-        plt.pie(frame['count'], labels=frame['survived'], autopct='%1.0f%%')
-        st.pyplot(plt)
-
-if graphs_form_submitted:
-    if class_survived:
-        st.subheader("Sobreviventes por Classe", divider="gray")
-        
-        df_ordered = df.sort_values('class', ascending=True)
-
-        plt.figure(figsize=(8, 6))
-        graph = sns.countplot(x='class', hue='survived', data=df_ordered)
-
-        legends, _ = graph.get_legend_handles_labels()
-        graph.legend(legends, ['Morreu','Sobreviveu'], title='Status do Passageiro(a)')
-
-        plt.xlabel('Classe')
-        plt.ylabel('Número de Passageiros')
-
-        graph.bar_label(graph.containers[0])
-        graph.bar_label(graph.containers[1])
-        st.pyplot(plt)
-
-if graphs_form_submitted:
-    if class_p_survived:
-        st.subheader("% de Sobreviventes por Classe", divider="gray")
-
-        df_ordered = df.sort_values('class', ascending=True)
-        
-        # Percentual de sobreviventes
-        survived_percent = df_ordered['survived'].mean() * 100
-
-        # Gráfico
-        plt.figure(figsize=(8, 6))
-
-        mean = df_ordered.groupby('class')['survived'].mean() * 100
-        mean['Mean'] = survived_percent
-        df_mean = mean.to_frame().reset_index()
-
-        colors = ['red' if x < survived_percent else 'yellow' for x in df_mean['survived']]
-
-        graph = sns.barplot(x='class', y="survived", hue='class', data=df_mean.round(), palette=colors)
-
-        plt.xlabel('Classe')
-        plt.ylabel('% de sobreviventes')
-
-        graph.bar_label(graph.containers[0])
-        graph.bar_label(graph.containers[1])
-        graph.bar_label(graph.containers[2])
-        graph.bar_label(graph.containers[3])
-        st.pyplot(plt)
-
-if graphs_form_submitted:
-    if corr_class_survived:
-        st.subheader("Correlação Classe vs Status Sobrevivência", divider="gray")
-        
-        df_ordered = df.sort_values('class', ascending=True)
-        # Geral
-        frame = df_ordered
-
-        # Correlação Classe vs Sobrevivente
-        correlation = frame[['survived', 'pclass']].corr()
-
-        # Gráfico
-        plt.figure(figsize=(8, 6))
-        heatmap = sns.heatmap(correlation, vmin=-1, vmax=1, annot=True)
-        st.pyplot(plt)
-
-if graphs_form_submitted:
-    if corr_1class3_survived:
-        st.subheader("Correlação Classe (Rico vs Pobre) vs Status Sobrevivência", divider="gray")
-        
-        df_ordered = df.sort_values('class', ascending=True)
-        df_ordered_removed_class2 = df_ordered.drop(df_ordered[df_ordered['pclass'] == 2].index)
-        
-        # Geral
-        frame = df_ordered_removed_class2
-
-        st.write(frame)
-        # Correlação Classe vs Sobrevivente
-        correlation = frame[['survived', 'pclass']].corr()
-
-        # Gráfico
-        plt.figure(figsize=(8, 6))
-        heatmap = sns.heatmap(correlation, vmin=-1, vmax=1, annot=True)
-        st.pyplot(plt)
-
-
-if graphs_form_submitted:
-    if sex_survived:
-        st.subheader("Sobreviventes por Sexo", divider="gray")
-        data = pd.DataFrame(df.groupby('sex')['survived'].value_counts().sort_index())
-        data = data.reset_index();
-        
-        chart_data = pd.DataFrame(
-            {
-                "Sexo": list(data['sex']),
-                "Pessoas": list(data['count']),
-                "Situação": list(["Vivo" if x == 1 else "Morto" for x in data['survived']])
-            }
-        )
-        
-        st.bar_chart(chart_data, x="Sexo", y="Pessoas", color="Situação")
-
-if graphs_form_submitted:
-    if corr_sex_survived:
-        st.subheader("Correlação Sexo vs Status Sobrevivência", divider="gray")
-
-        # Geral
-        df_ordered = df.sort_values('class', ascending=True)
-        frame = df_ordered
-        frame.replace('male', 0, inplace=True)
-        frame.replace('female', 1, inplace=True)
-
-        # Correlação Sexo vs Sobrevivente
-        correlation = frame[['survived', 'sex']].corr()
-        
-        # Gráfico
-        plt.figure(figsize=(8, 6))
-        heatmap = sns.heatmap(correlation, vmin=-1, vmax=1, annot=True)
-        st.pyplot(plt)
+        if mostrar_grafico_fontes:
+            st.subheader("📊 Distribuição das Notícias por Fonte")
+            fonte_counts = df_filtrado["Fonte"].value_counts().reset_index()
+            fonte_counts.columns = ["Fonte", "Quantidade"]
+            
+            fig = px.pie(fonte_counts, names="Fonte", values="Quantidade",
+                         title="Proporção de Notícias por Fonte", hole=0.4)
+            st.plotly_chart(fig, use_container_width=True)
