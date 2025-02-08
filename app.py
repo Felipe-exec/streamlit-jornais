@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Carregar os dados coletados
 @st.cache_data
 def carregar_dados():
     try:
@@ -14,10 +13,8 @@ def carregar_dados():
 
 df = carregar_dados()
 
-# === Barra Lateral ===
 st.sidebar.header('🔍 Configurações', divider='blue')
 
-# Formulário para exibição dos dados tabulares
 data_expander = st.sidebar.expander("# **Exibir Dados**", icon=":material/table:")
 with data_expander:
     with st.form("dados_form"):
@@ -25,7 +22,6 @@ with data_expander:
         mostrar_resumo = st.checkbox("Resumo estatístico dos dados")
         dados_form_submit = st.form_submit_button("Mostrar")
 
-# Formulário para exibição de gráficos
 graph_expander = st.sidebar.expander("# **Gráficos**", icon=":material/monitoring:")
 with graph_expander:
     with st.form("graficos_form"):
@@ -33,14 +29,11 @@ with graph_expander:
         mostrar_grafico_fontes = st.checkbox("Distribuição por Fonte")
         graficos_form_submit = st.form_submit_button("Gerar Gráficos")
 
-# === Página Principal ===
 st.title("📰 Dashboard de Notícias Mais Lidas")
 
-# Se não houver dados
 if df.empty:
     st.warning("Nenhuma notícia disponível. Execute a coleta de dados.")
 else:
-    # Filtros interativos
     st.sidebar.subheader("🎯 Filtrar Dados")
     categorias = df["Categoria"].unique()
     fontes = df["Fonte"].unique()
@@ -48,10 +41,8 @@ else:
     categoria_selecionada = st.sidebar.multiselect("Filtrar por Categoria:", categorias, default=categorias)
     fonte_selecionada = st.sidebar.multiselect("Filtrar por Fonte:", fontes, default=fontes)
 
-    # Aplicar filtros
     df_filtrado = df[df["Categoria"].isin(categoria_selecionada) & df["Fonte"].isin(fonte_selecionada)]
 
-    # Exibição dos dados tabulares
     if dados_form_submit:
         if mostrar_tabela:
             st.subheader("📋 Dados das Notícias")
@@ -61,7 +52,6 @@ else:
             st.subheader("📊 Resumo Estatístico")
             st.write(df_filtrado.describe(include="all"))
 
-    # Exibição dos gráficos
     if graficos_form_submit:
         if mostrar_grafico_categorias:
             st.subheader("📊 Distribuição das Categorias")
